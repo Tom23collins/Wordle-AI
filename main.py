@@ -1,11 +1,11 @@
-from random import random
 import pygame
 import random
+import time
 
 pygame.init()
 pygame.display.set_caption("Wordle")
 
-SCREEN = pygame.display.set_mode([560, 800])
+screen = pygame.display.set_mode([560, 670])
 FONT = pygame.font.SysFont('arial', 50,  bold=pygame.font.Font.bold)
 
 class Letter():
@@ -20,111 +20,85 @@ class Letter():
         self.GREEN = (106,170,100)
 
     def draw(self):
-        pygame.draw.rect(SCREEN, self.colour ,(self.coordinate_X,self.coordinate_Y,100,100))
+        pygame.draw.rect(screen, self.colour ,(self.coordinate_X,self.coordinate_Y,100,100))
         text = FONT.render(self.letter, True, (255,255,255))
         text_x = (self.coordinate_X + 50) - (text.get_width() / 2)
         text_y = (self.coordinate_Y + 20)
-        SCREEN.blit(text, (text_x, text_y))
+        screen.blit(text, (text_x, text_y))
 
     def status(self, word_list):
         if any(self.letter in word for word in word_list):
             self.colour = self.YELLOW
             if self.letter == word_list[self.position - 2]:
                 self.colour = self.GREEN
+                return True
+
 
 COLOR_INACTIVE = (120,124,126)
 COLOR_ACTIVE = (50,50,50)
-
-class InputBox:
-
-    def __init__(self, x, y, w, h, text=''):
-        self.rect = pygame.Rect(x, y, w, h)
-        self.color = COLOR_INACTIVE
-        self.text = text
-        self.txt_surface = FONT.render(text, True, self.color)
-        self.active = False
-
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            # If the user clicked on the input_box rect.
-            if self.rect.collidepoint(event.pos):
-                # Toggle the active variable.
-                self.active = not self.active
-            else:
-                self.active = False
-            # Change the current color of the input box.
-            self.color = COLOR_ACTIVE if self.active else COLOR_INACTIVE
-        if event.type == pygame.KEYDOWN:
-            if self.active:
-                if event.key == pygame.K_RETURN:
-                    print(self.text)
-                    self.text = ''
-                elif event.key == pygame.K_BACKSPACE:
-                    self.text = self.text[:-1]
-                else:
-                    self.text += event.unicode
-                # Re-render the text.
-                self.txt_surface = FONT.render(self.text, True, self.color)
-
-    def update(self):
-        # Resize the box if the text is too long.
-        width = max(200, self.txt_surface.get_width()+10)
-        self.rect.w = width
-
-    def draw(self, screen):
-        # Blit the text.
-        screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
-        # Blit the rect.
-        pygame.draw.rect(screen, self.color, self.rect, 1)
             
-
-with open('words.txt') as f:
-    lines = f.readlines()
-    words = lines[0].split()
-    word_list = list(words[random.randint(0,len(words))])
-    print(word_list)
-
-letters = []
-
-def add_letter(letters):
-    row = 5
+def random_word():
+    with open('words.txt') as f:
+        lines = f.readlines()
+        words = lines[0].split()
+        return list(words[random.randint(0,len(words))])
+        
+def guess(row, attempts):
+    row = []
     position = 0
-    guess = "cones"
-    guess = guess.upper()
-    guess_list = list(guess)
+    # open file and pick a random word
+    with open('words.txt') as f:
+        lines = f.readlines()
+        words = lines[0].split()
+        max_length = len(words) - 1
+        random_guess = list(words[random.randint(0,max_length)])
+    
     for i in range(5):
         position += 1
-        letters.append(Letter(guess_list[i], position, row))
-    row += 1
+        row.append(Letter(random_guess[i], position, attempts))
     position = 0
+    return row
 
-RUN = True
+run = True
 
-input_box1 = InputBox(180, 700, 120, 60)
-input_boxes = [input_box1]
+games = 0
+wins = 0
 
-while RUN:
-    for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                RUN = False
-            for box in input_boxes:
-                box.handle_event(event)
+while run:
+    letters = []
+    attempts = 0
+    screen.fill((255, 255, 255))
+    events = pygame.event.get()
 
-    SCREEN.fill((255, 255, 255))
+    guessing = True
 
-    add_letter(letters)
+    while guessing:
+        random_word_to_guess = random_word()
+        for i in range(6):
+            correct_letters = 0
+            random_guess = guess(letters, attempts)
+            attempts += 1
 
-    for box in letters:
-        box.status(word_list)
-        box.draw()
-                
-    for box in input_boxes:
-        box.update()
+            for each_letter in random_guess:
+                if each_letter.status(random_word_to_guess):
+                    correct_letters += 1
+                each_letter.draw()
+                if correct_letters == 5:
+                    wins += 1
+                    guessing = False
+            correct_letters = 0
+                    
+        games += 1
+        guessing = False
 
-    for box in input_boxes:
-        box.draw(SCREEN)
+    for event in events:
+        if event.type == pygame.QUIT:
+            run = False
 
-    pygame.display.update()
+    # print(f'{(wins / games) * 100} % of games have been won')
+    print(f'{wins} / {games} have been won')
 
-pygame.quit
+    pygame.display.flip()
+
+# pygame.quit
 
